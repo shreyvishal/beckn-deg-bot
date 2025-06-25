@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
-from routes import ai_router
+from routes.index import router as main_router
 from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
@@ -18,7 +18,7 @@ app.add_middleware(
 )
 
 # Include AI routes
-app.include_router(ai_router)
+app.include_router(prefix="/api", router = main_router)
 
 @app.get("/ping")
 def read_root():
