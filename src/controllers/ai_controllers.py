@@ -12,6 +12,7 @@ from dotenv import load_dotenv
 
 from service.ai.chat_history import with_session_memory
 from service.ai.prompts_and_model import categorier_model, domain_categoriser_prompt_template, general_chat_model, general_prompt_template, intent_categorier_prompt_template
+from service.ai.agents_and_tools import retail_agent_executor
 
 load_dotenv()
 
@@ -34,6 +35,9 @@ def domain_categoriser_chain(data):
             ))
 
 
+retail_agent_chain = RunnableLambda(
+    lambda x: retail_agent_executor.invoke({**x, "input": x["input"]})
+)
 
 
 branches = RunnableBranch(
@@ -43,7 +47,7 @@ branches = RunnableBranch(
         | RunnableBranch(
             (
                 lambda x: "deg:retail" in x["domain"] , # type: ignore
-                RunnableLambda(lambda x: print("In deg:retail-----> ",x) or x)
+                RunnableLambda(lambda x: print("In deg:retail-----> ",x) or retail_agent_executor.invoke({**x, "input": x["input"]}))
                 | general_prompt_template | general_chat_model | StrOutputParser()
             ),
             (

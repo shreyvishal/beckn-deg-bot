@@ -15,7 +15,7 @@ general_chat_model = ChatOpenAI(model="gpt-4o", temperature=0.6)
 
 categorier_model = ChatOpenAI(model="gpt-4o", temperature=0)
 
-
+retail_agent_model = ChatOpenAI(model="gpt-4o", temperature=0.3)
 
 
 intent_categorier_prompt_template = ChatPromptTemplate.from_messages([
@@ -76,3 +76,22 @@ general_prompt_template = ChatPromptTemplate.from_messages([
      AI Response:
      """),
 ])  
+
+retail_agent_prompt = ChatPromptTemplate.from_messages([
+    ("system", """
+        You're a shopping assistant. Help the user find and purchase products.
+        User will provide a message to you, and you will respond to the user based on your capabilities and the user's message.
+        You will be provided with the chat history with the user. Analyse the chat history and the user's message and respond to the user based on your capabilities and the user's message.
+        You will be provided with the following tools to help you respond to the user:
+        - search_products_api: Search for products by query and return a list of available items.
+        - select_product_api: Select a product from the list of available items.
+        - confirm_order_api: Confirm an order for a product from the list of available items.
+        Once confirm_order_api is success, give the user the order id and the order status.
+     """),
+    ("placeholder", "{chat_history}"),
+    ("assistant", "{agent_scratchpad}"),
+    ("user", """
+     User's message: {input}
+     AI Response:
+     """),
+])
