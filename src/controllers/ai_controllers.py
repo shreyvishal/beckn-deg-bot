@@ -36,7 +36,7 @@ def domain_categoriser_chain(data):
 
 
 retail_agent_chain = RunnableLambda(
-    lambda x: retail_agent_executor.invoke({**x, "input": x["input"]})
+    lambda x: retail_agent_executor.invoke({**x, "input": x["input"]}) # type: ignore
 )
 
 
@@ -47,7 +47,7 @@ branches = RunnableBranch(
         | RunnableBranch(
             (
                 lambda x: "deg:retail" in x["domain"] , # type: ignore
-                RunnableLambda(lambda x: print("In deg:retail-----> ",x) or retail_agent_executor.invoke({**x, "input": x["input"]}))
+                RunnableLambda(lambda x: print("In deg:retail-----> ",x) or retail_agent_executor.invoke({**x, "input": x["input"]})) # type: ignore
                 | general_prompt_template | general_chat_model | StrOutputParser()
             ),
             (
