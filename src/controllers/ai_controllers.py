@@ -48,7 +48,7 @@ branches = RunnableBranch(
             (
                 lambda x: "deg:retail" in x["domain"] , # type: ignore
                 RunnableLambda(lambda x: print("In deg:retail-----> ",x) or retail_agent_executor.invoke({**x, "input": x["input"]})) # type: ignore
-                | general_prompt_template | general_chat_model | StrOutputParser()
+                # | general_prompt_template | general_chat_model | StrOutputParser()
             ),
             (
                 lambda x: "deg:schemes" in x["domain"] , # type: ignore
