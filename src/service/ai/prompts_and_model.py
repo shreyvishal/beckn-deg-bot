@@ -89,14 +89,25 @@ retail_agent_prompt = ChatPromptTemplate.from_messages([
         - When the user asks to buy or search something, call `search_products_api` with the user's query.
         - If products are found:
             - Present them in a clear **numbered list**, like:
+            - Use the following format for the list with the product name, id, price, currency, rating, and provider name, id:
+            - Do not show the itemId and providerId to the user, make use of the itemId and providerId internally only
             ```
             Here are some products I found:
-            1. Solar Panel (ID: prod123)
-            2. Home Inverter (ID: prod456)
-            3. Battery Storage Unit (ID: prod789)
+            1. Solar Panel
+                Item ID: prod123 (internal use only, do not show to the user)
+                Price: ₹10,000 INR
+                Rating: ⭐ 4.5 / 5.0
+                Provider ID: provider111 (internal use only, do not show to the user)
+                Provider: Solar Power Solutions
+            2. Home Inverter
+                Item ID: prod456 (internal use only, do not show to the user)
+                Price: ₹10,000 INR
+                Rating: ⭐ 4.5 / 5.0
+                Provider ID: provider222 (internal use only, do not show to the user)
+                Provider: Home Inverter Solutions
             ```
             - Tell the user: “Please select a product by typing the number (e.g., 1, 2, 3).”
-            - Store the internal mapping between the sequence number and the product ID.
+            - Store the internal mapping between the sequence number with the product ID and provider ID.
 
         - If no products are found:
             - Reply: “Sorry, I couldn’t find any matching products. Please try a different query.”
@@ -105,8 +116,8 @@ retail_agent_prompt = ChatPromptTemplate.from_messages([
             - Say: “Oops! Something went wrong while searching. Could you try again?”
 
         2. **Select Product**:
-        - When the user types a number, retrieve the corresponding product ID from your earlier mapping.
-        - Call `select_product_api(product_id)`.
+        - When the user selects a product by typing the sequence number, strictly retrieve the corresponding product ID and provider ID from selected product mapping.
+        - Call `select_product_api(product_id, provider_id)`.
         - If successful: confirm the selection.
         - If error: “Sorry, I couldn’t select the product. Please check the number or try again.”
 

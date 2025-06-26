@@ -2,7 +2,7 @@
 
 import os
 import time
-from typing import Type, List
+from typing import Optional, Type, List
 import uuid
 
 from pydantic import BaseModel, Field
@@ -21,11 +21,15 @@ load_dotenv()
 ### ----------------------------------------
 
 class SearchProductArgs(BaseModel):
-    query: str = Field(description="Query to search for products")
+    query: str = Field(description="Product name or keyword to search")
 
 
 class SelectProductArgs(BaseModel):
-    product_id: str = Field(description="ID of the selected product")
+    product_id: str = Field(description="The ID of the product to select")
+    provider_id: str = Field(description="The ID of the product's provider")
+    context: Optional[dict] = Field(
+        None, description="Context from the previous Beckn search call"
+    )
 
 
 class ConfirmOrderArgs(BaseModel):
@@ -33,29 +37,22 @@ class ConfirmOrderArgs(BaseModel):
 
 class SearchProductTool(BaseTool):
     name: str = "search_products_api"
-    description: str = "Search for products using Beckn API and return a list of product names"
+    description: str = "Search for products using Beckn API and return a human-friendly list with product details"
     args_schema: Type[BaseModel] = SearchProductArgs
 
     def _run(self, query: str) -> str:
         print(f"[TOOL] Searching Beckn for: {query}")
 
         url = "https://bap-ps-client-deg.becknprotocol.io/search"
-
-        headers = {
-            "Content-Type": "application/json"
-        }
-
+        headers = {"Content-Type": "application/json"}
+        
         payload = {
             "context": {
                 "domain": "deg:retail",
                 "action": "search",
                 "location": {
-                    "country": {
-                        "code": "USA"
-                    },
-                    "city": {
-                        "code": "NANP:628"
-                    }
+                    "country": {"code": "USA"},
+                    "city": {"code": "NANP:628"}
                 },
                 "version": "1.1.0",
                 "bap_id": "bap-ps-network-deg.becknprotocol.io",
@@ -69,46 +66,116 @@ class SearchProductTool(BaseTool):
             "message": {
                 "intent": {
                     "item": {
-                        "descriptor": {
-                            "name": query
-                        }
+                        "descriptor": {"name": query}
                     }
                 }
             }
         }
 
         try:
+            response = requests.post(url, headers=headers, json=payload)
+            response.raise_for_status()
+            data = response.json()
+
+            items = []
+            responses = data.get("responses", [])
+            for r in responses:
+                providers = r.get("message", {}).get("catalog", {}).get("providers", [])
+                for provider in providers:
+                    for item in provider.get("items", []):
+                        name = item.get("descriptor", {}).get("name")
+                        price = item.get("price", {}).get("value")
+                        currency = item.get("price", {}).get("currency")
+                        rating = item.get("rating", "N/A")
+                        item_id = item.get("id")
+                        provider_id = provider.get("id")
+                        provider_name = provider.get("descriptor", {}).get("name")
+                        if name and item_id:
+                            items.append({
+                                "id": item_id,
+                                "name": name,
+                                "price": price,
+                                "currency": currency,
+                                "rating": rating,
+                                "provider": {
+                                    "id": provider_id,
+                                    "name": provider_name
+                                }
+                            })
+
+            if not items:
+                return "Sorry, I couldn't find any matching products. Please try a different query."
+
+            # Build user-friendly output
+            response_text = "Here are some products I found:\n\n"
+            for idx, item in enumerate(items, start=1):
+                response_text += f"{idx}. {item['name']}\n   Price: {item['price']} {item['currency']} | Rating: {item['rating']}\n   Provider: {item['provider']['name']}\n\n"
+            response_text += "\nPlease type the number of the product you'd like to select."
+
+            # TODO: Store items mapping (idx to product_id) in conversation context/memory
+            return response_text
+
+        except Exception as e:
+            return f"Oops! Something went wrong while searching for products: {e}"
+
+class SelectProductTool(BaseTool):
+    name: str = "select_product_api"
+    description: str = "Select a product from the list using the product ID and provider ID"
+    args_schema: Type[BaseModel] = SelectProductArgs
+
+    def _run(self, product_id: str, provider_id: str, context: Optional[dict] = None) -> str:
+        print(f"[TOOL] Selecting product: {product_id} from provider: {provider_id}")
+
+        try:
+            url = "https://bap-ps-client-deg.becknprotocol.io/select"
+            headers = {"Content-Type": "application/json"}
+
+            # Use context from previous search if available, else fallback to defaults
+            ctx = context or {
+                "domain": "deg:retail",
+                "action": "select",
+                "location": {
+                    "country": {"code": "USA"},
+                    "city": {"code": "NANP:628"}
+                },
+                "version": "1.1.0",
+                "bap_id": "bap-ps-network-deg.becknprotocol.io",
+                "bap_uri": "https://bap-ps-network-deg.becknprotocol.io",
+                "bpp_id": "bpp-ps-network-deg.becknprotocol.io",
+                "bpp_uri": "https://bpp-ps-network-deg.becknprotocol.io"
+            }
+
+            ctx.update({
+                "transaction_id": str(uuid.uuid4()),
+                "message_id": str(uuid.uuid4()),
+                "timestamp": str(int(time.time()))
+            })
+
+            payload = {
+                "context": ctx,
+                "message": {
+                    "order": {
+                        "provider": {
+                            "id": provider_id
+                        },
+                        "items": [
+                            {
+                                "id": product_id
+                            }
+                        ]
+                    }
+                }
+            }
+
             response = requests.post(url, headers=headers, json=payload, timeout=10)
             response.raise_for_status()
             data = response.json()
 
-            # Parse item names from response
-            items = []
-            catalog = data.get("message", {}).get("catalog", {})
-            providers = catalog.get("providers", [])
-            for provider in providers:
-                for item in provider.get("items", []):
-                    name = item.get("descriptor", {}).get("name")
-                    id_ = item.get("id")
-                    if name and id_:
-                        items.append(f"- {name} (ID: {id_})")
-
-            if items:
-                return "Found the following products:\n" + "\n".join(items)
-            else:
-                return "No products found for the given query."
+            # Optional: Check for expected keys or success indicators
+            return f"✅ Product with ID `{product_id}` from provider `{provider_id}` has been selected successfully."
 
         except Exception as e:
-            return f"Error while calling Beckn search API: {e}"
-
-class SelectProductTool(BaseTool):
-    name: str = "select_product_api"
-    description: str = "Select a product from the list using the product ID"
-    args_schema: Type[BaseModel] = SelectProductArgs
-
-    def _run(self, product_id: str) -> str:
-        print(f"[TOOL] Selecting product: {product_id}")
-        return f"Product with ID {product_id} has been selected."
+            return f"❌ Failed to select the product due to: {str(e)}"
 
 
 class ConfirmOrderTool(BaseTool):

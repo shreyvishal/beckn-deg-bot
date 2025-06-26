@@ -34,12 +34,6 @@ def domain_categoriser_chain(data):
            {"domain":x,"input":data["input"],"category":data["category"], "chat_history":data["chat_history"]}
             ))
 
-
-retail_agent_chain = RunnableLambda(
-    lambda x: retail_agent_executor.invoke({**x, "input": x["input"]}) # type: ignore
-)
-
-
 branches = RunnableBranch(
     (
         lambda x: isinstance(x, dict) and "BECKN_TRANSACTION" in x["category"],
@@ -49,6 +43,7 @@ branches = RunnableBranch(
                 lambda x: "deg:retail" in x["domain"] , # type: ignore
                 RunnableLambda(lambda x: print("In deg:retail-----> ",x) or retail_agent_executor.invoke({**x, "input": x["input"]})) # type: ignore
                 # | general_prompt_template | general_chat_model | StrOutputParser()
+                | RunnableLambda(lambda x: {"output":x["output"]})
             ),
             (
                 lambda x: "deg:schemes" in x["domain"] , # type: ignore
