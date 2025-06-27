@@ -1,3 +1,4 @@
+import json
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -12,10 +13,13 @@ class ChatRequest(BaseModel):
 # Create router
 router = APIRouter()
 
-@router.get("/health" )
-async def ai_health_check_route():
+@router.post("/health" )
+async def ai_health_check_route(http_request: Request):
+    data = await http_request.body()
+    data = json.loads(data)
+    print("data-----> ",data)
     """Health check endpoint for AI service"""
-    return ai_controllers.ai_health_check_controller()
+    return ai_controllers.ai_health_check_controller(data["session_id"])
 
 
 @router.post("/chat")
