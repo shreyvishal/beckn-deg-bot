@@ -1,12 +1,14 @@
 import json
-from fastapi import APIRouter, Request
+
+from fastapi import APIRouter, Request, Depends
 from pydantic import BaseModel, Field
 from typing import Optional
 import controllers.ai_controllers as ai_controllers
+from middleware.auth_middleware import get_current_active_user
+from models.user import UserResponse
 
 
 class ChatRequest(BaseModel):
-    session_id: Optional[str] = Field(default=None, description="Optional session ID for the chat")
     message: str = Field(..., description="The message to send to the AI")
 
 
@@ -23,10 +25,16 @@ async def ai_health_check_route(http_request: Request):
 
 
 @router.post("/chat")
-async def ai_chat_route(request: ChatRequest, http_request: Request):
-    session_id = http_request.headers.get('session_id')
-    """Chat endpoint for AI service"""
-    return ai_controllers.ai_chat_controller(request.message,f"{session_id}")
+async def ai_chat_route(
+    request: ChatRequest, 
+
+    http_request: Request 
+):
+    """Chat endpoint for AI service - requires authentication"""
+   
+    session_id = http_request.headers['authorization'].split("Bearer")[1].strip()
+    print("session_id-----> ",session_id)
+    return ai_controllers.ai_chat_controller(request.message,session_id )
 
 
 

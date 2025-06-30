@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  beckn-deg-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: beckn-deg-bot
+    ports:
+      - "${PORT:-3050}:3050"
+    environment:
+      # FastAPI Configuration
+      - PORT=3050
+
+      # OpenAI Configuration
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+
+      # Beckn Configuration
+      - BAP_ID=${BAP_ID:-bap-ps-network-deg.becknprotocol.io}
+      - BAP_URI=${BAP_URI:-https://bap-ps-network-deg.becknprotocol.io}
+      - BASE_URL=${BASE_URL:-https://bap-ps-client-deg.becknprotocol.io}
+
+      # MongoDB Configuration
+      - MONGODB_URL=${MONGODB_URL:-mongodb://mongodb:27017}
+      - DATABASE_NAME=${DATABASE_NAME:-beckn_deg_bot}
+
+      # JWT Authentication Configuration
+      - SECRET_KEY=${SECRET_KEY:-your-super-secret-jwt-key-here-change-in-production}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+
+      # Development/Production Environment
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+
+      # Python Configuration
+      - PYTHONPATH=/app/src
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # Optional: Mount source code for development
+      # - ./src:/app/src:ro
+      # Mount logs directory
+      - ./logs:/app/logs
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3050/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - beckn-network
+
+  # MongoDB service
+  mongodb:
+    image: mongo:7.0
+    container_name: beckn-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=${DATABASE_NAME:-beckn_deg_bot}
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - beckn-network
+
+# Optional: Add Redis for session storage (if needed for production)
+# redis:
+#   image: redis:7-alpine
+#   container_name: beckn-redis
+#   ports:
+#     - "6379:6379"
+#   volumes:
+#     - redis_data:/data
+#   restart: unless-stopped
+#   networks:
+#     - beckn-network
+
+networks:
+  beckn-network:
+    driver: bridge
+# volumes:
+#   redis_data:
+
+volumes:
+  mongodb_data:
