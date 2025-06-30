@@ -27,12 +27,14 @@ async def ai_health_check_route(http_request: Request):
 @router.post("/chat")
 async def ai_chat_route(
     request: ChatRequest, 
-    current_user: UserResponse = Depends(get_current_active_user)
+
+    http_request: Request 
 ):
     """Chat endpoint for AI service - requires authentication"""
-    # Use user ID as session ID for user-specific conversations
-    user_session_id = f"user_{current_user.id}"
-    return ai_controllers.ai_chat_controller(request.message, user_session_id)
+   
+    session_id = http_request.headers['authorization'].split("Bearer")[1].strip()
+    print("session_id-----> ",session_id)
+    return ai_controllers.ai_chat_controller(request.message,session_id )
 
 
 
