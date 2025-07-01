@@ -21,9 +21,9 @@ from service.schemas.product import ConfirmOrderResponse, SearchProductResponse,
 
 load_dotenv()
 
-BECKN_BASE_URL = os.getenv("BECKN_BASE_URL")
-BAP_ID = os.getenv("BAP_ID")
-BAP_URI = os.getenv("BAP_URI")
+BECKN_BASE_URL = os.getenv("BECKN_BASE_URL","https://bap-ps-client-deg.becknprotocol.io")
+BAP_ID = os.getenv("BAP_ID","bap-ps-client-deg.becknprotocol.io")
+BAP_URI = os.getenv("BAP_URI","https://bap-ps-client-deg.becknprotocol.io")
 
 
 
